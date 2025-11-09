@@ -15,6 +15,10 @@ A CLI-based background job queue system with support for job enqueueing, worker 
 -  **Atomic Job Fetching**: Prevents duplicate job processing
 -  **Dual Interface**: Both interactive menu and command-line modes available
 
+## Implementation Video
+
+https://drive.google.com/file/d/1EtugJBar69lUuynO1cqVAqLW2XaFgVNq/view?usp=sharing
+
 ## Installation
 
 ### Prerequisites
