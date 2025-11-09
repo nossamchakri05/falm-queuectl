@@ -35,8 +35,29 @@ def create_managers():
 
 def cmd_enqueue(args):
     """Handle enqueue command."""
+    # If --file option is provided, read from file
+    if args.file:
+        try:
+            with open(args.file, 'r', encoding='utf-8') as f:
+                job_data_str = f.read().strip()
+        except FileNotFoundError:
+            print(f"Error: File not found: {args.file}", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error reading file: {e}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        # Join job_data parts in case it was split by shell (Windows PowerShell issue)
+        if isinstance(args.job_data, list):
+            job_data_str = ' '.join(args.job_data)
+        else:
+            job_data_str = args.job_data
+        
+        # Remove surrounding quotes if present (PowerShell sometimes adds them)
+        job_data_str = job_data_str.strip().strip('"\'')
+    
     try:
-        job_data = json.loads(args.job_data)
+        job_data = json.loads(job_data_str)
     except json.JSONDecodeError as e:
         print(f"Error: Invalid JSON: {e}", file=sys.stderr)
         sys.exit(1)
@@ -200,6 +221,221 @@ def cmd_config_set(args):
         sys.exit(1)
 
 
+def clear_screen():
+    """Clear the terminal screen."""
+    import os
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+
+def print_menu():
+    """Display the main menu."""
+    print("\n" + "="*60)
+    print(" " * 15 + "QueueCTL - Job Queue Manager")
+    print("="*60)
+    print("\n  Main Menu:")
+    print("  " + "-"*56)
+    print("  1.  Show Queue Status")
+    print("  2.  List Jobs")
+    print("  3.  Enqueue New Job")
+    print("  4.  Start Workers")
+    print("  5.  Stop Workers")
+    print("  6.  View Dead Letter Queue (DLQ)")
+    print("  7.  Retry Job from DLQ")
+    print("  8.  View Configuration")
+    print("  9.  Set Configuration")
+    print("  0.  Exit")
+    print("  " + "-"*56)
+
+
+def interactive_menu():
+    """Interactive menu-driven interface."""
+    global _worker_manager
+    
+    while True:
+        print_menu()
+        try:
+            choice = input("\n  Enter your choice (0-9): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\n\nExiting...")
+            break
+        
+        if choice == "0":
+            print("\n  Goodbye!")
+            break
+        elif choice == "1":
+            # Show Status
+            print("\n" + "="*60)
+            print("  Queue Status")
+            print("="*60)
+            args = argparse.Namespace()
+            cmd_status(args)
+            input("\n  Press Enter to continue...")
+        elif choice == "2":
+            # List Jobs
+            print("\n" + "="*60)
+            print("  List Jobs")
+            print("="*60)
+            print("\n  Filter by state (optional):")
+            print("  1. All jobs")
+            print("  2. Pending")
+            print("  3. Processing")
+            print("  4. Completed")
+            print("  5. Failed")
+            print("  6. Dead")
+            
+            state_choice = input("\n  Enter choice (1-6, default: 1): ").strip()
+            state_map = {
+                "1": None,
+                "2": "pending",
+                "3": "processing",
+                "4": "completed",
+                "5": "failed",
+                "6": "dead"
+            }
+            state = state_map.get(state_choice, None)
+            
+            args = argparse.Namespace(state=state)
+            cmd_list(args)
+            input("\n  Press Enter to continue...")
+        elif choice == "3":
+            # Enqueue Job
+            print("\n" + "="*60)
+            print("  Enqueue New Job")
+            print("="*60)
+            print("\n  Enter job details:")
+            
+            job_id = input("  Job ID (leave empty to auto-generate): ").strip()
+            command = input("  Command to execute: ").strip()
+            
+            if not command:
+                print("  Error: Command is required!", file=sys.stderr)
+                input("\n  Press Enter to continue...")
+                continue
+            
+            max_retries_input = input("  Max retries (default: 3, press Enter for default): ").strip()
+            max_retries = int(max_retries_input) if max_retries_input else 3
+            
+            # Build job data
+            job_data = {"command": command, "max_retries": max_retries}
+            if job_id:
+                job_data["id"] = job_id
+            
+            # Create args object
+            args = argparse.Namespace()
+            args.file = None
+            args.job_data = json.dumps(job_data)
+            
+            try:
+                cmd_enqueue(args)
+            except SystemExit:
+                pass  # Error already printed
+            
+            input("\n  Press Enter to continue...")
+        elif choice == "4":
+            # Start Workers
+            print("\n" + "="*60)
+            print("  Start Workers")
+            print("="*60)
+            
+            count_input = input("\n  Number of workers (press Enter for default): ").strip()
+            count = int(count_input) if count_input else None
+            
+            args = argparse.Namespace(count=count)
+            
+            print("\n  Starting workers...")
+            try:
+                cmd_worker_start(args)
+            except KeyboardInterrupt:
+                print("\n  Workers stopped by user.")
+            except SystemExit:
+                pass
+        elif choice == "5":
+            # Stop Workers
+            print("\n" + "="*60)
+            print("  Stop Workers")
+            print("="*60)
+            
+            args = argparse.Namespace()
+            cmd_worker_stop(args)
+            input("\n  Press Enter to continue...")
+        elif choice == "6":
+            # View DLQ
+            print("\n" + "="*60)
+            print("  Dead Letter Queue")
+            print("="*60)
+            
+            args = argparse.Namespace()
+            cmd_dlq_list(args)
+            input("\n  Press Enter to continue...")
+        elif choice == "7":
+            # Retry Job from DLQ
+            print("\n" + "="*60)
+            print("  Retry Job from DLQ")
+            print("="*60)
+            
+            job_id = input("\n  Enter Job ID to retry: ").strip()
+            if not job_id:
+                print("  Error: Job ID is required!", file=sys.stderr)
+                input("\n  Press Enter to continue...")
+                continue
+            
+            args = argparse.Namespace(job_id=job_id)
+            try:
+                cmd_dlq_retry(args)
+            except SystemExit:
+                pass  # Error already printed
+            
+            input("\n  Press Enter to continue...")
+        elif choice == "8":
+            # View Configuration
+            print("\n" + "="*60)
+            print("  View Configuration")
+            print("="*60)
+            
+            key = input("\n  Configuration key (press Enter for all): ").strip()
+            key = key if key else None
+            
+            args = argparse.Namespace(key=key)
+            try:
+                cmd_config_get(args)
+            except SystemExit:
+                pass  # Error already printed
+            
+            input("\n  Press Enter to continue...")
+        elif choice == "9":
+            # Set Configuration
+            print("\n" + "="*60)
+            print("  Set Configuration")
+            print("="*60)
+            print("\n  Available configuration keys:")
+            print("    - max-retries (integer)")
+            print("    - backoff-base (float)")
+            print("    - worker-count (integer)")
+            
+            key = input("\n  Configuration key: ").strip()
+            if not key:
+                print("  Error: Configuration key is required!", file=sys.stderr)
+                input("\n  Press Enter to continue...")
+                continue
+            
+            value = input("  Configuration value: ").strip()
+            if not value:
+                print("  Error: Configuration value is required!", file=sys.stderr)
+                input("\n  Press Enter to continue...")
+                continue
+            
+            args = argparse.Namespace(key=key, value=value)
+            try:
+                cmd_config_set(args)
+            except SystemExit:
+                pass  # Error already printed
+            
+            input("\n  Press Enter to continue...")
+        else:
+            print("\n  Invalid choice! Please enter a number between 0-9.")
+            input("\n  Press Enter to continue...")
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -207,11 +443,15 @@ def main():
         description="CLI-based background job queue system"
     )
     
+    parser.add_argument("--interactive", "-i", action="store_true", 
+                       help="Launch interactive menu interface")
+    
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
     
     # Enqueue command
     enqueue_parser = subparsers.add_parser("enqueue", help="Enqueue a new job")
-    enqueue_parser.add_argument("job_data", help="Job data as JSON string")
+    enqueue_parser.add_argument("job_data", nargs=argparse.REMAINDER, help="Job data as JSON string")
+    enqueue_parser.add_argument("--file", "-f", help="Read job data from a JSON file instead of command line")
     
     # Worker commands
     worker_parser = subparsers.add_parser("worker", help="Worker management")
@@ -251,7 +491,12 @@ def main():
     
     args = parser.parse_args()
     
-    if not args.command:
+    # Launch interactive menu if requested or no command provided
+    if args.interactive or (hasattr(args, 'command') and not args.command):
+        interactive_menu()
+        return
+    
+    if not hasattr(args, 'command') or not args.command:
         parser.print_help()
         sys.exit(1)
     

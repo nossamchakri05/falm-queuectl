@@ -4,6 +4,7 @@ A CLI-based background job queue system with support for job enqueueing, worker 
 
 ## Features
 
+- ✅ **Interactive Menu UI**: User-friendly terminal menu interface for easy navigation
 - ✅ **Job Management**: Enqueue, track, and manage background jobs
 - ✅ **Multiple Workers**: Run multiple concurrent workers to process jobs
 - ✅ **Automatic Retries**: Exponential backoff retry mechanism for failed jobs
@@ -12,6 +13,7 @@ A CLI-based background job queue system with support for job enqueueing, worker 
 - ✅ **Configuration Management**: Configurable retry and backoff settings
 - ✅ **Graceful Shutdown**: Workers finish current jobs before stopping
 - ✅ **Atomic Job Fetching**: Prevents duplicate job processing
+- ✅ **Dual Interface**: Both interactive menu and command-line modes available
 
 ## Installation
 
@@ -39,6 +41,145 @@ A CLI-based background job queue system with support for job enqueueing, worker 
 
 ## Usage
 
+### Interactive Menu Mode (Recommended for Beginners)
+
+The interactive menu provides a user-friendly, guided interface for managing your job queue. It's perfect for interactive use and learning the system.
+
+#### Launching the Interactive Menu
+
+```bash
+# Launch interactive menu (default when no command is provided)
+python main.py
+
+# Or explicitly
+python main.py --interactive
+# or
+python main.py -i
+```
+
+#### Menu Options
+
+The interactive menu displays a numbered list of available operations:
+
+```
+============================================================
+               QueueCTL - Job Queue Manager
+============================================================
+
+  Main Menu:
+  --------------------------------------------------------
+  1.  Show Queue Status
+  2.  List Jobs
+  3.  Enqueue New Job
+  4.  Start Workers
+  5.  Stop Workers
+  6.  View Dead Letter Queue (DLQ)
+  7.  Retry Job from DLQ
+  8.  View Configuration
+  9.  Set Configuration
+  0.  Exit
+  --------------------------------------------------------
+```
+
+#### Interactive Menu Features
+
+**1. Show Queue Status**
+- Displays a comprehensive overview of the queue
+- Shows counts for pending, processing, completed, failed, and dead jobs
+- Displays DLQ job count
+
+**2. List Jobs**
+- Provides a sub-menu to filter jobs by state:
+  - All jobs
+  - Pending
+  - Processing
+  - Completed
+  - Failed
+  - Dead
+- Shows detailed information for each job including ID, command, state, attempts, and timestamps
+
+**3. Enqueue New Job**
+- Guided input prompts for:
+  - **Job ID**: Optional (auto-generated if left empty)
+  - **Command**: Required (the command to execute)
+  - **Max Retries**: Optional (defaults to 3)
+- Validates input and provides clear error messages
+
+**4. Start Workers**
+- Prompts for number of workers (uses default from config if empty)
+- Starts workers and keeps them running until interrupted
+- Press `Ctrl+C` to stop workers gracefully
+
+**5. Stop Workers**
+- Sends stop signal to all running workers
+- Workers finish current jobs before stopping
+
+**6. View Dead Letter Queue (DLQ)**
+- Lists all jobs in the Dead Letter Queue
+- Shows detailed information about permanently failed jobs
+
+**7. Retry Job from DLQ**
+- Prompts for Job ID to retry
+- Moves job from DLQ back to pending state
+- Validates that the job exists in DLQ
+
+**8. View Configuration**
+- Option to view all configuration or a specific key
+- Shows current settings for max_retries, backoff_base, and worker_count
+
+**9. Set Configuration**
+- Displays available configuration keys
+- Prompts for key and value
+- Validates input and updates configuration
+
+**0. Exit**
+- Gracefully exits the interactive menu
+
+#### Example Interactive Session
+
+```
+$ python main.py
+
+============================================================
+               QueueCTL - Job Queue Manager
+============================================================
+
+  Main Menu:
+  --------------------------------------------------------
+  1.  Show Queue Status
+  2.  List Jobs
+  3.  Enqueue New Job
+  4.  Start Workers
+  5.  Stop Workers
+  6.  View Dead Letter Queue (DLQ)
+  7.  Retry Job from DLQ
+  8.  View Configuration
+  9.  Set Configuration
+  0.  Exit
+  --------------------------------------------------------
+
+  Enter your choice (0-9): 1
+
+============================================================
+  Queue Status
+============================================================
+Queue Status:
+  Jobs:
+    Pending: 5
+    Processing: 2
+    Completed: 10
+    Failed: 1
+    Dead: 0
+    Total: 18
+  DLQ: 0 jobs
+
+  Press Enter to continue...
+```
+
+### Command-Line Mode
+
+For automation and scripting, you can use the command-line interface directly:
+
 ### Enqueue a Job
 
 **Linux/Mac:**
@@ -48,7 +189,11 @@ queuectl enqueue '{"id":"job1","command":"echo Hello World"}'
 
 **Windows (PowerShell):**
 ```powershell
+# Method 1: Use escaped quotes (recommended)
 python main.py enqueue '{\"id\":\"job1\",\"command\":\"echo Hello World\"}'
+
+# Method 2: Use a JSON file (easiest for complex jobs)
+python main.py enqueue --file job.json
 ```
 
 Or let the system generate an ID:
@@ -56,7 +201,7 @@ Or let the system generate an ID:
 # Linux/Mac
 queuectl enqueue '{"command":"sleep 2"}'
 
-# Windows
+# Windows PowerShell
 python main.py enqueue '{\"command\":\"sleep 2\"}'
 ```
 
@@ -257,6 +402,17 @@ Jobs are persisted to `~/.queuectl/data.json` with the following structure:
 
 ### 1. Basic Job Execution
 
+**Using Interactive Menu:**
+```bash
+python main.py
+# Choose option 3 (Enqueue New Job)
+# Enter: Job ID: test1, Command: echo Success
+# Choose option 4 (Start Workers)
+# Enter: Number of workers: 1
+# In another terminal, choose option 1 (Show Queue Status)
+```
+
+**Using Command Line:**
 ```bash
 # Enqueue a simple job
 queuectl enqueue '{"id":"test1","command":"echo Success"}'
@@ -271,6 +427,16 @@ queuectl list --state completed
 
 ### 2. Failed Job Retry
 
+**Using Interactive Menu:**
+```bash
+python main.py
+# Choose option 3 (Enqueue New Job)
+# Enter: Job ID: test2, Command: exit 1, Max retries: 3
+# Choose option 4 (Start Workers)
+# Choose option 2 (List Jobs) -> option 5 (Failed) to check status
+```
+
+**Using Command Line:**
 ```bash
 # Enqueue a job that will fail
 queuectl enqueue '{"id":"test2","command":"exit 1","max_retries":3}'
@@ -284,6 +450,16 @@ queuectl list --state failed
 
 ### 3. DLQ Movement
 
+**Using Interactive Menu:**
+```bash
+python main.py
+# Choose option 3 (Enqueue New Job)
+# Enter: Job ID: test3, Command: exit 1, Max retries: 2
+# Choose option 4 (Start Workers)
+# Wait for retries to exhaust, then choose option 6 (View DLQ)
+```
+
+**Using Command Line:**
 ```bash
 # Enqueue a job that will fail permanently
 queuectl enqueue '{"id":"test3","command":"exit 1","max_retries":2}'
@@ -297,6 +473,15 @@ queuectl dlq list
 
 ### 4. DLQ Retry
 
+**Using Interactive Menu:**
+```bash
+python main.py
+# Choose option 7 (Retry Job from DLQ)
+# Enter: Job ID: test3
+# Choose option 2 (List Jobs) -> option 2 (Pending) to verify
+```
+
+**Using Command Line:**
 ```bash
 # Retry a job from DLQ
 queuectl dlq retry test3
@@ -334,6 +519,17 @@ queuectl worker start --count 1
 
 ### 7. Configuration
 
+**Using Interactive Menu:**
+```bash
+python main.py
+# Choose option 8 (View Configuration) to see all settings
+# Choose option 9 (Set Configuration)
+# Enter: Key: max-retries, Value: 5
+# Enter: Key: backoff-base, Value: 3.0
+# Choose option 8 again to verify changes
+```
+
+**Using Command Line:**
 ```bash
 # View config
 queuectl config get
@@ -397,7 +593,7 @@ queuectl config get
 
 ```
 QueueCTL/
-├── main.py              # CLI entry point
+├── main.py              # CLI entry point with interactive menu
 ├── job_manager.py       # Job lifecycle management
 ├── worker_manager.py    # Worker thread management
 ├── executor.py          # Command execution
@@ -406,20 +602,49 @@ QueueCTL/
 ├── storage.py           # Persistent storage layer
 ├── utils.py             # Utility functions
 ├── requirements.txt     # Dependencies (none required)
-└── README.md           # This file
+├── README.md           # This file
+└── CHECKLIST_VERIFICATION_RESULTS.md  # Test results
 ```
+
+### Main Components
+
+- **main.py**: Entry point that provides both interactive menu and command-line interfaces
+- **job_manager.py**: Manages job lifecycle, state transitions, and job operations
+- **worker_manager.py**: Handles worker thread creation, coordination, and lifecycle
+- **executor.py**: Executes shell commands for jobs
+- **dlq_manager.py**: Manages Dead Letter Queue operations
+- **config_manager.py**: Handles configuration storage and retrieval
+- **storage.py**: Provides persistent JSON-based storage with thread safety
 
 ## Troubleshooting
 
 ### Workers Not Processing Jobs
 
+**Using Interactive Menu:**
+1. Launch menu: `python main.py`
+2. Choose option 1 (Show Queue Status) to check current state
+3. Choose option 2 (List Jobs) -> option 2 (Pending) to verify jobs
+4. Choose option 4 (Start Workers) to start processing
+
+**Using Command Line:**
 1. Check if workers are running: `queuectl status`
 2. Verify jobs are in pending state: `queuectl list --state pending`
 3. Check for errors in logs (enable logging: set `logging.basicConfig(level=logging.INFO)`)
 
 ### Jobs Stuck in Processing
 
-If a worker crashes, jobs may remain in `processing` state. You can manually update them or restart the system (jobs will be retried based on their state).
+If a worker crashes, jobs may remain in `processing` state. 
+
+**Using Interactive Menu:**
+1. Launch menu: `python main.py`
+2. Choose option 2 (List Jobs) -> option 3 (Processing) to see stuck jobs
+3. Restart workers: Choose option 5 (Stop Workers), then option 4 (Start Workers)
+
+**Using Command Line:**
+- Check stuck jobs: `queuectl list --state processing`
+- Restart workers: `queuectl worker stop` then `queuectl worker start`
+
+Jobs will be retried based on their state when workers restart.
 
 ### Storage File Issues
 
@@ -432,6 +657,37 @@ Storage file is located at `~/.queuectl/data.json`. If corrupted:
 
 This project is provided as-is for educational and demonstration purposes.
 
+## Quick Start Guide
+
+### First Time Users
+
+1. **Launch the Interactive Menu:**
+   ```bash
+   python main.py
+   ```
+
+2. **Check Queue Status:**
+   - Choose option `1` to see the current state of your queue
+
+3. **Enqueue Your First Job:**
+   - Choose option `3`
+   - Enter a command (e.g., `echo "Hello World"`)
+   - Leave Job ID empty to auto-generate one
+   - Press Enter for default max retries (3)
+
+4. **Start Workers:**
+   - Choose option `4`
+   - Enter number of workers (or press Enter for default)
+   - Workers will process jobs automatically
+
+5. **Monitor Jobs:**
+   - Use option `1` to check status
+   - Use option `2` to list jobs by state
+
+### Advanced Users
+
+For automation and scripting, use the command-line interface directly. All commands work the same way as the interactive menu, but can be scripted and automated.
+
 ## Contributing
 
 This is a demonstration project. For production use, consider:
@@ -440,4 +696,5 @@ This is a demonstration project. For production use, consider:
 - Adding job priorities and scheduling
 - Implementing job timeouts
 - Adding metrics and monitoring
+- Enhancing the interactive menu with more features
 
