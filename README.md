@@ -4,16 +4,16 @@ A CLI-based background job queue system with support for job enqueueing, worker 
 
 ## Features
 
-- ✅ **Interactive Menu UI**: User-friendly terminal menu interface for easy navigation
-- ✅ **Job Management**: Enqueue, track, and manage background jobs
-- ✅ **Multiple Workers**: Run multiple concurrent workers to process jobs
-- ✅ **Automatic Retries**: Exponential backoff retry mechanism for failed jobs
-- ✅ **Dead Letter Queue**: Permanent storage for jobs that exceed max retries
-- ✅ **Persistent Storage**: JSON-based storage that survives process restarts
-- ✅ **Configuration Management**: Configurable retry and backoff settings
-- ✅ **Graceful Shutdown**: Workers finish current jobs before stopping
-- ✅ **Atomic Job Fetching**: Prevents duplicate job processing
-- ✅ **Dual Interface**: Both interactive menu and command-line modes available
+-  **Interactive Menu UI**: User-friendly terminal menu interface for easy navigation
+-  **Job Management**: Enqueue, track, and manage background jobs
+-  **Multiple Workers**: Run multiple concurrent workers to process jobs
+-  **Automatic Retries**: Exponential backoff retry mechanism for failed jobs
+-  **Dead Letter Queue**: Permanent storage for jobs that exceed max retries
+-  **Persistent Storage**: JSON-based storage that survives process restarts
+-  **Configuration Management**: Configurable retry and backoff settings
+-  **Graceful Shutdown**: Workers finish current jobs before stopping
+-  **Atomic Job Fetching**: Prevents duplicate job processing
+-  **Dual Interface**: Both interactive menu and command-line modes available
 
 ## Installation
 
